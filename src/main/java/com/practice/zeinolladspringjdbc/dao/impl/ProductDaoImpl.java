@@ -1,12 +1,10 @@
 package com.practice.zeinolladspringjdbc.dao.impl;
 
-import com.practice.zeinolladspringjdbc.dao.CategoryDao;
 import com.practice.zeinolladspringjdbc.dao.ProductDao;
 import com.practice.zeinolladspringjdbc.model.Category;
 import com.practice.zeinolladspringjdbc.model.Product;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 import org.springframework.stereotype.Component;
 
@@ -20,16 +18,21 @@ import java.util.NoSuchElementException;
 @RequiredArgsConstructor
 public class ProductDaoImpl implements ProductDao {
     private final JdbcTemplate jdbcTemplate;
-    private final CategoryDao categoryDao;
+    private static final String SELECT_ALL = """
+            select products.id, products.name, products.price, category_id, categories.name category_name
+            from products
+            join categories on products.category_id = categories.id
+            """;
 
     @Override
     public List<Product> findAll() {
-        return jdbcTemplate.query("select * from products", this::mapRow);
+        return jdbcTemplate.query(SELECT_ALL, this::mapRow);
     }
 
     @Override
     public Product findById(int id) {
-        return jdbcTemplate.queryForStream("select * from products where id = ?", this::mapRow, id)
+        return jdbcTemplate.queryForStream(
+                        SELECT_ALL + " where id = ?", this::mapRow, id)
                 .findFirst()
                 .orElseThrow(() -> new NoSuchElementException("Не найдено"));
     }
@@ -53,9 +56,9 @@ public class ProductDaoImpl implements ProductDao {
         int id = rs.getInt("id");
         String name = rs.getString("name");
         double price = rs.getDouble("price");
-        int categoryId = rs.getInt("category_id");
 
-        Category category = categoryDao.findById(categoryId);
+        Category category = new Category(rs.getInt("category_id"),
+                rs.getString("category_name"));
 
         return new Product(id, name, price, category);
     }
